@@ -1,6 +1,8 @@
 services:
   api:
-    build: ./api
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     container_name: rp-cloud-api
     ports:
       - "8081:8080"
@@ -15,6 +17,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_started
+      flyway:
+        condition: service_completed_successfully
 
   postgres:
     image: postgres:17
@@ -62,6 +66,23 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_NUM_PARTITIONS: 1
+
+  flyway:
+    image: redgate/flyway:10
+    container_name: rp-cloud-flyway
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: migrate
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/rp_cloud_labs
+      FLYWAY_USER: rp_user
+      FLYWAY_PASSWORD: rp_password
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_BASELINE_ON_MIGRATE: "true"
+      FLYWAY_BASELINE_VERSION: "0"
+    volumes:
+      - ./db/migration:/flyway/sql:ro
 
 volumes:
   postgres_data:
